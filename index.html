@@ -273,7 +273,7 @@
       padding-top: 10px
     }
 
-    /* ── Toggle bar: Фигура / Фото / Заливка / Внутри ── */
+    /* ── Toggle bar: Фигура / Фото / Заливка / Внутри / Эмодзи ── */
     .toggle-bar {
       display: flex;
       border-radius: 8px;
@@ -1177,13 +1177,14 @@
       </div>
       <div id="help-content">
         <div class="help-section">
-          <h3>Режимы: Фигура / Фото / Заливка / Внутри</h3>
-          <p>Переключатель сверху задаёт один из <strong>четырёх</strong> режимов (порядок слева направо):
-            <strong>Фигура</strong>, <strong>Фото</strong>, <strong>Заливка</strong>, <strong>Внутри</strong>.</p>
+          <h3>Режимы: Фигура / Фото / Заливка / Внутри / Эмодзи</h3>
+          <p>Переключатель сверху задаёт один из <strong>пяти</strong> режимов (порядок слева направо):
+            <strong>Фигура</strong>, <strong>Фото</strong>, <strong>Заливка</strong>, <strong>Внутри</strong>, <strong>Эмодзи</strong>.</p>
           <p><strong>Фигура</strong> &mdash; иконки вокруг формы, аура снаружи; без внутреннего ряда у контура и без
             вывода кастомной формы в SVG. <strong>Фото</strong> &mdash; как «Фигура», но на превью и в экспорт всегда
             добавляются кастомная форма (если задана) и один внутренний ряд иконок у контура.
-            <strong>Внутри</strong> &mdash; иконки заполняют внутренность формы; первый цвет в центре, последний у края.</p>
+            <strong>Внутри</strong> &mdash; иконки заполняют внутренность формы; первый цвет в центре, последний у края.
+            <strong>Эмодзи</strong> &mdash; как «Фигура», плюс уменьшение иконок у краёв канваса; только иконка Circle.</p>
           <p><strong>Заливка</strong> &mdash; отдельный режим: форма не используется, иконки равномерно покрывают весь
             канвас; направление градиента задаётся стрелками в сайдбаре (см. ниже).</p>
         </div>
@@ -1200,7 +1201,7 @@
         <div class="help-divider"></div>
         <div class="help-section">
           <h3>Форма</h3>
-          <p>Базовая форма доступна в режимах <strong>Фигура</strong>, <strong>Фото</strong> и <strong>Внутри</strong>:
+          <p>Базовая форма доступна в режимах <strong>Фигура</strong>, <strong>Фото</strong>, <strong>Внутри</strong> и <strong>Эмодзи</strong>:
             сердце, круг, квадрат, ромб; вокруг неё (или внутри) строится сетка иконок. Можно загрузить свой SVG-файл
             &mdash; он будет автоматически растеризован в bitmap для расчёта расстояний. Файл <strong>.svg</strong> можно
             также перетащить мышью на область превью (канвас). Импорт формы всегда обрабатывается в качестве
@@ -1434,6 +1435,78 @@
           state.activePresetIndex = presetIndex;
         }
 
+        var lastNonEmojiEnabledIconsSnapshot = null;
+        var lastNonEmojiEnabledIconsSnapshotSource = null;
+
+        function buildEnabledIconsSnapshot(sourceEnabledIcons) {
+          var totalIcons = getAllIcons().length;
+          var normalizedEnabledIcons = Array(totalIcons).fill(true);
+          for (var iconIndex = 0; iconIndex < totalIcons; iconIndex++) {
+            if (sourceEnabledIcons && sourceEnabledIcons[iconIndex] !== undefined) {
+              normalizedEnabledIcons[iconIndex] = !!sourceEnabledIcons[iconIndex];
+            } else if (state.enabledIcons[iconIndex] !== undefined) {
+              normalizedEnabledIcons[iconIndex] = !!state.enabledIcons[iconIndex];
+            }
+          }
+          return normalizedEnabledIcons;
+        }
+
+        function rememberNonEmojiEnabledIconsSnapshot(snapshotSource, sourceEnabledIcons) {
+          lastNonEmojiEnabledIconsSnapshot = buildEnabledIconsSnapshot(sourceEnabledIcons);
+          lastNonEmojiEnabledIconsSnapshotSource = snapshotSource || "unknown";
+        }
+
+        function getPresetEnabledIconsSnapshot(presetType, presetIndex) {
+          var preset = null;
+          if (presetType === "builtin" && presetIndex >= 0 && presetIndex < PRESETS.length) {
+            preset = PRESETS[presetIndex];
+          } else if (presetType === "user" && Array.isArray(state.userPresets) && presetIndex >= 0 && presetIndex < state.userPresets.length) {
+            preset = state.userPresets[presetIndex];
+          }
+          if (!preset || !Array.isArray(preset.icons)) return null;
+          var totalIcons = getAllIcons().length;
+          var presetEnabledIcons = Array(totalIcons).fill(false);
+          preset.icons.forEach(function (iconIndex) {
+            if (iconIndex >= 0 && iconIndex < totalIcons) presetEnabledIcons[iconIndex] = true;
+          });
+          for (var customIconIndex = ICON_COUNT; customIconIndex < totalIcons; customIconIndex++) {
+            presetEnabledIcons[customIconIndex] = true;
+          }
+          return presetEnabledIcons;
+        }
+
+        function syncNonEmojiIconsSnapshotWithState() {
+          if (state.placementMode !== "emoji") {
+            rememberNonEmojiEnabledIconsSnapshot("mode-non-emoji", state.enabledIcons);
+            return;
+          }
+          var presetEnabledIcons = getPresetEnabledIconsSnapshot(state.activePresetType, state.activePresetIndex);
+          if (presetEnabledIcons) {
+            rememberNonEmojiEnabledIconsSnapshot("active-preset-emoji", presetEnabledIcons);
+          }
+        }
+
+        function restoreNonEmojiEnabledIconsSnapshot() {
+          if (Array.isArray(lastNonEmojiEnabledIconsSnapshot)) {
+            state.enabledIcons = buildEnabledIconsSnapshot(lastNonEmojiEnabledIconsSnapshot);
+            return;
+          }
+          enableAllIcons();
+          rememberNonEmojiEnabledIconsSnapshot("fallback-enable-all", state.enabledIcons);
+        }
+
+        function normalizeEnabledIconsForEmoji(enabledIcons) {
+          var totalIcons = getAllIcons().length;
+          var normalizedIcons = Array(totalIcons).fill(false);
+          normalizedIcons[BUILTIN_CIRCLE_ICON_INDEX] = true;
+          return normalizedIcons;
+        }
+
+        function enforceEmojiEnabledIconsIfNeeded() {
+          if (state.placementMode !== "emoji") return;
+          state.enabledIcons = normalizeEnabledIconsForEmoji(state.enabledIcons);
+        }
+
         function enableAllIcons() {
           var totalIcons = getAllIcons().length;
           state.enabledIcons = Array(totalIcons).fill(true);
@@ -1542,9 +1615,9 @@
             }
             state.edgeChaosRot = edgeChaosOffsetStoredToUi(state.edgeChaosRot);
             var _pm = data.placementMode !== undefined && data.placementMode !== null ? data.placementMode : (data.fillMode !== undefined && data.fillMode !== null ? data.fillMode : (data.auraMode !== undefined && data.auraMode !== null ? data.auraMode : null));
-            if (_pm === "emoji") _pm = "inside";
-            if (_pm !== "photo" && _pm !== "outside" && _pm !== "inside" && _pm !== "fill") _pm = "outside";
+            if (_pm !== "photo" && _pm !== "outside" && _pm !== "inside" && _pm !== "emoji" && _pm !== "fill") _pm = "outside";
             state.placementMode = _pm;
+            syncNonEmojiIconsSnapshotWithState();
             if (
               typeof shapeSnapshotBeforeBuiltinGate === "string" &&
               shapeSnapshotBeforeBuiltinGate.indexOf("fill-") === 0 &&
@@ -1580,6 +1653,7 @@
               state.shape = state.lastGeometricShape || "heart";
             }
             if (typeof state.exportBg !== "boolean") state.exportBg = true;
+            enforceEmojiEnabledIconsIfNeeded();
             var hasValidActiveType =
               state.activePresetType === "builtin" ||
               state.activePresetType === "user";
@@ -1690,6 +1764,7 @@
 
         function effectiveDensityForPlacementMode(placementMode) {
           if (placementMode === "inside") return state.insideDensity;
+          if (placementMode === "emoji") return 100;
           return 60;
         }
 
@@ -2375,7 +2450,7 @@
               ox,
               oy,
               addInnerRow !== false,
-              false
+              placementMode === "emoji"
             );
           }
           _dotKey = key;
@@ -4715,6 +4790,8 @@
               state[k] = v;
             }
           });
+          syncNonEmojiIconsSnapshotWithState();
+          enforceEmojiEnabledIconsIfNeeded();
         }
 
         function undo() {
@@ -4966,7 +5043,7 @@
           var placementModeIsFill = state.placementMode === "fill";
           var placementModeIsInside = state.placementMode === "inside";
           var placementBar = el("div", "toggle-bar");
-          [["outside", "Фигура"], ["photo", "Фото"], ["fill", "Заливка"], ["inside", "Внутри"]].forEach(function (row) {
+          [["outside", "Фигура"], ["photo", "Фото"], ["fill", "Заливка"], ["inside", "Внутри"], ["emoji", "Эмодзи"]].forEach(function (row) {
             var m = row[0];
             var lbl = row[1];
             var b = el("button", m === state.placementMode ? "active" : "");
@@ -4992,7 +5069,14 @@
                 state.shape = state.lastFillShape || "fill-down";
                 invalidateDotCache();
               }
+              if (previousMode !== "emoji" && m === "emoji") {
+                rememberNonEmojiEnabledIconsSnapshot("enter-emoji", state.enabledIcons);
+              }
+              if (previousMode === "emoji" && m !== "emoji") {
+                restoreNonEmojiEnabledIconsSnapshot();
+              }
               state.placementMode = m;
+              enforceEmojiEnabledIconsIfNeeded();
               buildUI();
               render();
               saveState();
@@ -5306,7 +5390,9 @@
                     next[i] = true;
                   }
                   state.enabledIcons = next;
+                  rememberNonEmojiEnabledIconsSnapshot("builtin-preset-apply", next);
                 }
+                enforceEmojiEnabledIconsIfNeeded();
                 buildUI();
                 render();
               };
@@ -5342,7 +5428,9 @@
                       next[i] = true;
                     }
                     state.enabledIcons = next;
+                    rememberNonEmojiEnabledIconsSnapshot("user-preset-apply", next);
                   }
+                  enforceEmojiEnabledIconsIfNeeded();
                   buildUI();
                   render();
                 };
@@ -5394,6 +5482,11 @@
           logoBadge.textContent = enabledCount + "/" + totalIcons;
           sb.appendChild(collapsible("Логотипы", "logosOpen", logoBadge, function () {
             var wrap = el("div", "", { display: "flex", flexDirection: "column", gap: "8px" });
+            var emojiLogosLocked = state.placementMode === "emoji";
+            var logosLockHintId = "logos-emoji-lock-hint";
+            if (emojiLogosLocked) {
+              wrap.classList.add("logos-locked");
+            }
             var g = el("div", "grid4");
             var allDefs = getAllIcons();
             var allNames = getAllIconNames();
@@ -5422,7 +5515,13 @@
               var vbY = def.cy - R;
               var vbSz = R * 2;
               var b = el("button", enabled ? "enabled" : "");
-              b.setAttribute("aria-disabled", "false");
+              if (emojiLogosLocked) {
+                b.disabled = true;
+                b.setAttribute("aria-disabled", "true");
+                b.setAttribute("aria-describedby", logosLockHintId);
+              } else {
+                b.setAttribute("aria-disabled", "false");
+              }
               b.innerHTML = '<svg width="22" height="22" viewBox="' + vbX + " " + vbY + " " + vbSz + " " + vbSz + '" style="opacity:' + (enabled ? 1 : .2) + '">' + def.paths.map(function (d) {
                 return '<path d="' + d + '"' + (def.fillRule ? ' fill-rule="' + def.fillRule + '"' : '') + ' fill="currentColor"/>';
               }).join("") + '</svg><span class="name">' + (allNames[idx] || "") + "</span>";
@@ -5430,6 +5529,7 @@
                 b.innerHTML += '<div class="cross-line"></div>';
               }
               b.onclick = function () {
+                if (emojiLogosLocked) return;
                 if (enabled && enabledCount <= 1) {
                   return;
                 }
@@ -5461,9 +5561,16 @@
                 var rm = el("button", "remove-custom");
                 rm.textContent = "\u2715";
                 rm.title = "\u0423\u0434\u0430\u043B\u0438\u0442\u044C \u043B\u043E\u0433\u043E\u0442\u0438\u043F";
-                rm.setAttribute("aria-disabled", "false");
+                if (emojiLogosLocked) {
+                  rm.disabled = true;
+                  rm.setAttribute("aria-disabled", "true");
+                  rm.setAttribute("aria-describedby", logosLockHintId);
+                } else {
+                  rm.setAttribute("aria-disabled", "false");
+                }
                 rm.onclick = function (e) {
                   e.stopPropagation();
+                  if (emojiLogosLocked) return;
                   var ci = idx - ICON_COUNT;
                   state.customIcons.splice(ci, 1);
                   state.customIconNames.splice(ci, 1);
@@ -5482,8 +5589,15 @@
             wrap.appendChild(g);
             var toggleAll = el("button", "toggle-all-btn");
             toggleAll.textContent = enabledCount === totalIcons ? "Отключить все" : "Включить все";
-            toggleAll.setAttribute("aria-disabled", "false");
+            if (emojiLogosLocked) {
+              toggleAll.disabled = true;
+              toggleAll.setAttribute("aria-disabled", "true");
+              toggleAll.setAttribute("aria-describedby", logosLockHintId);
+            } else {
+              toggleAll.setAttribute("aria-disabled", "false");
+            }
             toggleAll.onclick = function () {
+              if (emojiLogosLocked) return;
               if (enabledCount === totalIcons) {
                 state.enabledIcons = Array.from({ length: totalIcons }, function (_, index) {
                   if (index < ICON_COUNT) {
@@ -5503,11 +5617,24 @@
             wrap.appendChild(toggleAll);
             var ub = el("button", "upload-btn");
             ub.textContent = "\u2B06 Загрузить SVG-логотип";
-            ub.setAttribute("aria-disabled", "false");
+            if (emojiLogosLocked) {
+              ub.disabled = true;
+              ub.setAttribute("aria-disabled", "true");
+              ub.setAttribute("aria-describedby", logosLockHintId);
+            } else {
+              ub.setAttribute("aria-disabled", "false");
+            }
             ub.onclick = function () {
+              if (emojiLogosLocked) return;
               document.getElementById("iconFileInput").click();
             };
             wrap.appendChild(ub);
+            if (emojiLogosLocked) {
+              var logosLockNote = el("div", "logos-lock-note");
+              logosLockNote.id = logosLockHintId;
+              logosLockNote.textContent = "В режиме «Эмодзи» используется только Circle. Доступны только цвета ауры и фон.";
+              wrap.appendChild(logosLockNote);
+            }
             return wrap;
           }));
           // Colors
@@ -5692,6 +5819,10 @@
           e.target.value = "";
         });
         document.getElementById("iconFileInput").addEventListener("change", function (e) {
+          if (state.placementMode === "emoji") {
+            e.target.value = "";
+            return;
+          }
           if (!e.target.files) {
             return;
           }
@@ -5705,6 +5836,7 @@
                 state.customIconNames.push(file.name.replace(/\.svg$/i, ""));
                 state.customIconSVGs.push(reader.result);
                 state.enabledIcons.push(true);
+                enforceEmojiEnabledIconsIfNeeded();
                 clearActivePresetSelection();
                 _hasLegacyPresetSelection = false;
                 invalidateIconCaches();
@@ -5740,6 +5872,8 @@
           clearActivePresetSelection();
           _hasLegacyPresetSelection = false;
           state.enabledIcons = Array.from({ length: ICON_COUNT }, function (_, i) { return !GEOMETRIC_INDICES.has(i) });
+          rememberNonEmojiEnabledIconsSnapshot("reset-defaults", state.enabledIcons);
+          enforceEmojiEnabledIconsIfNeeded();
           state.customIcons = []; state.customIconNames = []; state.customIconSVGs = [];
           state.customShapeBitmap = null; state.customDistField = null; state.customBitmapSize = 0; state.customShapeName = ""; state.customShapeSVG = "";
           state.customShapeQuality = 1024;
@@ -5774,6 +5908,7 @@
           state.customIconSVGs = _vSVGs;
           state.customIconNames = _vNames;
           state.enabledIcons = state.enabledIcons.slice(0, ICON_COUNT).concat(_vEnabled);
+          enforceEmojiEnabledIconsIfNeeded();
           invalidateIconCaches();
         }
 
