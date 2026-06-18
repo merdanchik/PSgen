@@ -4961,6 +4961,7 @@
           var sb = document.getElementById("sidebar-scroll");
           sb.innerHTML = "";
           var placementModeIsFill = state.placementMode === "fill";
+          var placementModeIsInside = state.placementMode === "inside";
           var placementBar = el("div", "toggle-bar");
           [["outside", "Фигура"], ["photo", "Фото"], ["fill", "Заливка"], ["inside", "Внутри"]].forEach(function (row) {
             var m = row[0];
@@ -5181,7 +5182,7 @@
               lastLimitAdjustmentSource = "other";
               state.auraWidth = v;
               render();
-            }, false, "auraWidth"));
+            }, placementModeIsInside, "auraWidth"));
             d.appendChild(slider("Размер иконок", state.iconSize, 10, 100, 1, state.iconSize, function (v) {
               pushHistory();
               lastLimitAdjustmentSource = "iconSize";
@@ -5193,19 +5194,19 @@
               lastLimitAdjustmentSource = "other";
               state.edgeChaos = v;
               render();
-            }, false));
+            }, placementModeIsInside));
             d.appendChild(slider("Хаос · Детализация", state.edgeChaosFreq, 1, 6, 1, state.edgeChaosFreq, function (v) {
               pushHistory();
               lastLimitAdjustmentSource = "other";
               state.edgeChaosFreq = clampEdgeChaosFreqStored(v);
               render();
-            }, false));
+            }, placementModeIsInside));
             d.appendChild(slider("Хаос · Смещение", edgeChaosOffsetStoredToUi(state.edgeChaosRot), 0, 100, 1, edgeChaosOffsetStoredToUi(state.edgeChaosRot), function (v) {
               pushHistory();
               lastLimitAdjustmentSource = "other";
               state.edgeChaosRot = edgeChaosOffsetUiToStored(v);
               render();
-            }, false));
+            }, placementModeIsInside));
             var randBtn = el("button", "save-preset-btn");
             randBtn.textContent = "\u21BA \u041F\u0435\u0440\u0435\u043C\u0435\u0448\u0430\u0442\u044C \u043B\u043E\u0433\u043E\u0442\u0438\u043F\u044B";
             randBtn.title = "\u0421\u0433\u0435\u043D\u0435\u0440\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u043D\u043E\u0432\u043E\u0435 \u0440\u0430\u0441\u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435 \u0438\u043A\u043E\u043D\u043E\u043A";
