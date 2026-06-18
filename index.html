@@ -273,42 +273,36 @@
       padding-top: 10px
     }
 
-    /* ── Toggle bar: Фигура / Фото / Заливка / Внутри / Эмодзи ── */
-    .toggle-bar {
-      display: flex;
+    /* ── Mode select ── */
+    .mode-select {
+      width: 100%;
+      padding: 7px 32px 7px 10px;
       border-radius: 8px;
-      background: rgba(255, 255, 255, .05);
-      padding: 2px;
-      gap: 2px
-    }
-
-    .toggle-bar button {
-      flex: 0;
-      padding: 6px 10px;
-      border-radius: 6px;
-      border: 0;
+      border: 1px solid rgba(255, 255, 255, .1);
+      background: rgba(255, 255, 255, .06)
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(255,255,255,.4)'/%3E%3C/svg%3E")
+        no-repeat right 10px center;
+      appearance: none;
+      -webkit-appearance: none;
+      color: rgba(255, 255, 255, .9);
       font-size: 14px;
+      font-weight: 500;
       cursor: pointer;
-      transition: all .15s;
-      background: transparent;
-      color: rgba(255, 255, 255, .4);
-      font-weight: 400
+      outline: none;
+      transition: border-color .15s
     }
 
-    .toggle-bar button.active {
-      background: rgba(255, 255, 255, .11);
-      color: rgba(255, 255, 255, .92);
-      font-weight: 500
+    .mode-select:hover {
+      border-color: rgba(255, 255, 255, .22)
     }
 
-    .toggle-bar button:not(.active):hover {
-      color: rgba(255, 255, 255, .65);
-      background: rgba(255, 255, 255, .04)
+    .mode-select:focus {
+      border-color: rgba(255, 255, 255, .35)
     }
 
-    .toggle-bar.disabled {
-      opacity: .22;
-      pointer-events: none
+    .mode-select option {
+      background: #1e1e1e;
+      color: rgba(255, 255, 255, .9)
     }
 
     /* ── Grids ── */
@@ -5042,47 +5036,45 @@
           sb.innerHTML = "";
           var placementModeIsFill = state.placementMode === "fill";
           var placementModeIsInside = state.placementMode === "inside";
-          var placementBar = el("div", "toggle-bar");
+          var placementBar = el("select", "mode-select");
           [["outside", "Фигура"], ["photo", "Фото"], ["fill", "Заливка"], ["inside", "Внутри"], ["emoji", "Эмодзи"]].forEach(function (row) {
-            var m = row[0];
-            var lbl = row[1];
-            var b = el("button", m === state.placementMode ? "active" : "");
-            b.textContent = lbl;
-            b.onclick = function () {
-              pushHistory();
-              var previousMode = state.placementMode;
-              if (previousMode === "fill" && m !== "fill") {
-                if (state.shape.indexOf("fill-") === 0) {
-                  state.lastFillShape = state.shape;
-                }
-                var nextGeometricShape = state.lastGeometricShape || "heart";
-                if (
-                  nextGeometricShape === "custom" &&
-                  !state.customShapeBitmap
-                ) {
-                  nextGeometricShape = "heart";
-                }
-                state.shape = nextGeometricShape;
-                invalidateDotCache();
-              }
-              if (m === "fill" && previousMode !== "fill") {
-                state.shape = state.lastFillShape || "fill-down";
-                invalidateDotCache();
-              }
-              if (previousMode !== "emoji" && m === "emoji") {
-                rememberNonEmojiEnabledIconsSnapshot("enter-emoji", state.enabledIcons);
-              }
-              if (previousMode === "emoji" && m !== "emoji") {
-                restoreNonEmojiEnabledIconsSnapshot();
-              }
-              state.placementMode = m;
-              enforceEmojiEnabledIconsIfNeeded();
-              buildUI();
-              render();
-              saveState();
-            };
-            placementBar.appendChild(b);
+            var opt = document.createElement("option");
+            opt.value = row[0];
+            opt.textContent = row[1];
+            if (row[0] === state.placementMode) opt.selected = true;
+            placementBar.appendChild(opt);
           });
+          placementBar.onchange = function () {
+            pushHistory();
+            var previousMode = state.placementMode;
+            var m = placementBar.value;
+            if (previousMode === "fill" && m !== "fill") {
+              if (state.shape.indexOf("fill-") === 0) {
+                state.lastFillShape = state.shape;
+              }
+              var nextGeometricShape = state.lastGeometricShape || "heart";
+              if (nextGeometricShape === "custom" && !state.customShapeBitmap) {
+                nextGeometricShape = "heart";
+              }
+              state.shape = nextGeometricShape;
+              invalidateDotCache();
+            }
+            if (m === "fill" && previousMode !== "fill") {
+              state.shape = state.lastFillShape || "fill-down";
+              invalidateDotCache();
+            }
+            if (previousMode !== "emoji" && m === "emoji") {
+              rememberNonEmojiEnabledIconsSnapshot("enter-emoji", state.enabledIcons);
+            }
+            if (previousMode === "emoji" && m !== "emoji") {
+              restoreNonEmojiEnabledIconsSnapshot();
+            }
+            state.placementMode = m;
+            enforceEmojiEnabledIconsIfNeeded();
+            buildUI();
+            render();
+            saveState();
+          };
           sb.appendChild(placementBar);
           // Canvas size
           var csDiv = el("div", "", { display: "flex", flexDirection: "column", gap: "10px", borderTop: "1px solid rgba(255,255,255,.07)", paddingTop: "10px" });
