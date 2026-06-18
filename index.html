@@ -1414,14 +1414,14 @@
         var CHAOS_BOUNDARY_DEPTH = 2;
         var CHAOS_BREAKUP_INTENSITY = 0.01;
         var CHAOS_MASK_SOFT_COMPRESSION = 2;
-        var state = { shape: "heart", auraColors: ["#FFB040", "#FF7050", "#de3c6c", "#9d1456", "#5c163c", "#400b27"], bgColor: "#000000", placementMode: "outside", lastGeometricShape: "heart", lastFillShape: "fill-down", canvasSizeId: "16:9", customCanvasW: 3840, customCanvasH: 2160, shapeScale: 0.20, auraWidth: 0.15, edgeChaos: 0, edgeChaosFreq: CHAOS_DETAIL_DEFAULT, edgeChaosRot: 0, iconSize: 29, enabledIcons: Array.from({ length: ICON_COUNT }, function (_, i) { return !GEOMETRIC_INDICES.has(i) }), seed: 0, userPresets: [], activePresetType: null, activePresetIndex: -1, customIcons: [], customIconNames: [], customIconSVGs: [], customShapeBitmap: null, customDistField: null, customBitmapSize: 0, customShapeName: "", customShapeSVG: "", customShapeQuality: 1024, exportBg: true, shapeOffsetX: 0, shapeOffsetY: 0, iconCount: 0, settingsOpen: true, presetsOpen: true, logosOpen: false, colorsOpen: false, bgOpen: false };
+        var state = { shape: "heart", auraColors: ["#FFB040", "#FF7050", "#de3c6c", "#9d1456", "#5c163c", "#400b27"], bgColor: "#000000", placementMode: "outside", lastGeometricShape: "heart", lastFillShape: "fill-down", canvasSizeId: "16:9", customCanvasW: 3840, customCanvasH: 2160, shapeScale: 0.20, auraWidth: 0.15, edgeChaos: 0, edgeChaosFreq: CHAOS_DETAIL_DEFAULT, edgeChaosRot: 0, insideDensity: 60, iconSize: 29, enabledIcons: Array.from({ length: ICON_COUNT }, function (_, i) { return !GEOMETRIC_INDICES.has(i) }), seed: 0, userPresets: [], activePresetType: null, activePresetIndex: -1, customIcons: [], customIconNames: [], customIconSVGs: [], customShapeBitmap: null, customDistField: null, customBitmapSize: 0, customShapeName: "", customShapeSVG: "", customShapeQuality: 1024, exportBg: true, shapeOffsetX: 0, shapeOffsetY: 0, iconCount: 0, settingsOpen: true, presetsOpen: true, logosOpen: false, colorsOpen: false, bgOpen: false };
 
         // ═══════════════════════════════════════════════════════════════════════
         // LOCAL STORAGE — auto-save / auto-load
         // ═══════════════════════════════════════════════════════════════════════
         var LS_KEY = "shapeGen_settings", _saveTimer = null;
         var _savedShapeId = null;
-        var SAVE_KEYS = ["shape", "auraColors", "bgColor", "placementMode", "lastGeometricShape", "lastFillShape", "canvasSizeId", "customCanvasW", "customCanvasH", "shapeScale", "auraWidth", "edgeChaos", "edgeChaosFreq", "edgeChaosRot", "iconSize", "enabledIcons", "seed", "userPresets", "activePresetType", "activePresetIndex", "customIconSVGs", "customIconNames", "customShapeSVG", "customShapeName", "exportBg", "shapeOffsetX", "shapeOffsetY", "settingsOpen", "presetsOpen", "logosOpen", "colorsOpen", "bgOpen"];
+        var SAVE_KEYS = ["shape", "auraColors", "bgColor", "placementMode", "lastGeometricShape", "lastFillShape", "canvasSizeId", "customCanvasW", "customCanvasH", "shapeScale", "auraWidth", "edgeChaos", "edgeChaosFreq", "edgeChaosRot", "insideDensity", "iconSize", "enabledIcons", "seed", "userPresets", "activePresetType", "activePresetIndex", "customIconSVGs", "customIconNames", "customShapeSVG", "customShapeName", "exportBg", "shapeOffsetX", "shapeOffsetY", "settingsOpen", "presetsOpen", "logosOpen", "colorsOpen", "bgOpen"];
         var _hasLegacyPresetSelection = false;
 
         function clearActivePresetSelection() {
@@ -1533,6 +1533,8 @@
             state.customShapeQuality = 1024;
             if (typeof state.edgeChaos !== "number" || !isFinite(state.edgeChaos)) state.edgeChaos = 0;
             if (state.edgeChaos < 0) state.edgeChaos = 0; else if (state.edgeChaos > 10) state.edgeChaos = 10;
+            if (typeof state.insideDensity !== "number" || !isFinite(state.insideDensity)) state.insideDensity = 60;
+            state.insideDensity = Math.max(1, Math.min(100, Math.round(state.insideDensity)));
             if (typeof state.edgeChaosFreq !== "number" || !isFinite(state.edgeChaosFreq)) state.edgeChaosFreq = CHAOS_DETAIL_DEFAULT;
             state.edgeChaosFreq = clampEdgeChaosFreqStored(state.edgeChaosFreq);
             if (typeof state.edgeChaosRot !== "number" || !isFinite(state.edgeChaosRot)) {
@@ -1687,6 +1689,7 @@
         }
 
         function effectiveDensityForPlacementMode(placementMode) {
+          if (placementMode === "inside") return state.insideDensity;
           return 60;
         }
 
@@ -4675,7 +4678,7 @@
         // ═══════════════════════════════════════════════════════════════════════
         // UNDO / REDO
         // ═══════════════════════════════════════════════════════════════════════
-        var HISTORY_KEYS = ["shape", "auraColors", "bgColor", "placementMode", "lastGeometricShape", "lastFillShape", "canvasSizeId", "shapeScale", "auraWidth", "edgeChaos", "edgeChaosFreq", "edgeChaosRot", "iconSize", "enabledIcons", "seed", "userPresets", "activePresetType", "activePresetIndex", "exportBg"];
+        var HISTORY_KEYS = ["shape", "auraColors", "bgColor", "placementMode", "lastGeometricShape", "lastFillShape", "canvasSizeId", "shapeScale", "auraWidth", "edgeChaos", "edgeChaosFreq", "edgeChaosRot", "insideDensity", "iconSize", "enabledIcons", "seed", "userPresets", "activePresetType", "activePresetIndex", "exportBg"];
         var _history = [], _historyIdx = -1, _historyMax = 30;
 
         function snapshotState() {
@@ -5176,37 +5179,49 @@
               state.shapeScale = v;
               render();
             }, placementModeIsFill));
-            var auraWidthLabel = placementModeIsFill ? "Заполнение" : "Толщина ауры";
-            d.appendChild(slider(auraWidthLabel, state.auraWidth, .05, 1, .01, Math.round(state.auraWidth * 100) + "%", function (v) {
-              pushHistory();
-              lastLimitAdjustmentSource = "other";
-              state.auraWidth = v;
-              render();
-            }, placementModeIsInside, "auraWidth"));
+            if (!placementModeIsInside) {
+              var auraWidthLabel = placementModeIsFill ? "Заполнение" : "Толщина ауры";
+              d.appendChild(slider(auraWidthLabel, state.auraWidth, .05, 1, .01, Math.round(state.auraWidth * 100) + "%", function (v) {
+                pushHistory();
+                lastLimitAdjustmentSource = "other";
+                state.auraWidth = v;
+                render();
+              }, false, "auraWidth"));
+            }
             d.appendChild(slider("Размер иконок", state.iconSize, 10, 100, 1, state.iconSize, function (v) {
               pushHistory();
               lastLimitAdjustmentSource = "iconSize";
               state.iconSize = clampIconSizeStored(v);
               render();
             }, false, "iconSize"));
-            d.appendChild(slider("Хаос · Сила", state.edgeChaos, 0, 10, 1, state.edgeChaos, function (v) {
-              pushHistory();
-              lastLimitAdjustmentSource = "other";
-              state.edgeChaos = v;
-              render();
-            }, placementModeIsInside));
-            d.appendChild(slider("Хаос · Детализация", state.edgeChaosFreq, 1, 6, 1, state.edgeChaosFreq, function (v) {
-              pushHistory();
-              lastLimitAdjustmentSource = "other";
-              state.edgeChaosFreq = clampEdgeChaosFreqStored(v);
-              render();
-            }, placementModeIsInside));
-            d.appendChild(slider("Хаос · Смещение", edgeChaosOffsetStoredToUi(state.edgeChaosRot), 0, 100, 1, edgeChaosOffsetStoredToUi(state.edgeChaosRot), function (v) {
-              pushHistory();
-              lastLimitAdjustmentSource = "other";
-              state.edgeChaosRot = edgeChaosOffsetUiToStored(v);
-              render();
-            }, placementModeIsInside));
+            if (placementModeIsInside) {
+              d.appendChild(slider("Плотность", state.insideDensity, 1, 100, 1, state.insideDensity, function (v) {
+                pushHistory();
+                lastLimitAdjustmentSource = "other";
+                state.insideDensity = Math.max(1, Math.min(100, Math.round(v)));
+                render();
+              }, false));
+            }
+            if (!placementModeIsInside) {
+              d.appendChild(slider("Хаос · Сила", state.edgeChaos, 0, 10, 1, state.edgeChaos, function (v) {
+                pushHistory();
+                lastLimitAdjustmentSource = "other";
+                state.edgeChaos = v;
+                render();
+              }, false));
+              d.appendChild(slider("Хаос · Детализация", state.edgeChaosFreq, 1, 6, 1, state.edgeChaosFreq, function (v) {
+                pushHistory();
+                lastLimitAdjustmentSource = "other";
+                state.edgeChaosFreq = clampEdgeChaosFreqStored(v);
+                render();
+              }, false));
+              d.appendChild(slider("Хаос · Смещение", edgeChaosOffsetStoredToUi(state.edgeChaosRot), 0, 100, 1, edgeChaosOffsetStoredToUi(state.edgeChaosRot), function (v) {
+                pushHistory();
+                lastLimitAdjustmentSource = "other";
+                state.edgeChaosRot = edgeChaosOffsetUiToStored(v);
+                render();
+              }, false));
+            }
             var randBtn = el("button", "save-preset-btn");
             randBtn.textContent = "\u21BA \u041F\u0435\u0440\u0435\u043C\u0435\u0448\u0430\u0442\u044C \u043B\u043E\u0433\u043E\u0442\u0438\u043F\u044B";
             randBtn.title = "\u0421\u0433\u0435\u043D\u0435\u0440\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u043D\u043E\u0432\u043E\u0435 \u0440\u0430\u0441\u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435 \u0438\u043A\u043E\u043D\u043E\u043A";
@@ -5718,6 +5733,7 @@
           state.edgeChaos = 0;
           state.edgeChaosFreq = CHAOS_DETAIL_DEFAULT;
           state.edgeChaosRot = 0;
+          state.insideDensity = 60;
           state.iconSize = 29;
           state.seed = 0;
           state.userPresets = [];
